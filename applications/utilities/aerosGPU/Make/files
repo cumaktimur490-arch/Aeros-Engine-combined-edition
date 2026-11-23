@@ -1,0 +1,14 @@
+aerosGpuCl.C
+aerosGpuDevice.C
+aerosGpuKernels.C
+aerosGpuMatrix.C
+aerosGpuSolver.C
+aerosGpuSolverDevice.C
+aerosGpuFoamCore.C
+aerosGpuFoam.C
+
+LIB = $(FOAM_USER_LIBBIN)/libaerosGpuSolvers
+
+aerosGpuInfo.C
+
+EXE = $(FOAM_USER_APPBIN)/aerosGpuInfo

@@ -1,0 +1,82 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  dev                                   |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      fvSolution;
+}
+
+// aerosGPU drop-in solvers. The names are new so an existing case keeps working until
+// someone opts in — and so a run can be switched back by editing one word.
+//
+// The preconditioner entry is accepted and ignored: the accelerator carries its own
+// IC(0)/ILU(0), because the factorisation has to exist on the device. Leaving the
+// entry in place means the same fvSolution works for both.
+
+solvers
+{
+    p
+    {
+        solver          aerosPCG;
+        preconditioner  DIC;
+        tolerance       1e-9;
+        relTol          0;
+        maxIter         1000;
+        minIter         0;
+    }
+
+    U
+    {
+        solver          aerosPBiCGStab;
+        preconditioner  DILU;
+        tolerance       1e-9;
+        relTol          0;
+    }
+
+    Phi
+    {
+        $p;
+        tolerance       1e-7;
+        relTol          0.01;
+    }
+}
+
+aerosGPU
+{
+    // -2 automatic (fastest suitable device), -1 never leave the CPU, >= 0 a specific
+    // device index from aerosGpuInfo.
+    gpuDevice   -2;
+
+    // Below this the transfer and launch cost dominates; small meshes stay on the CPU
+    // even when a device is present.
+    gpuMinCells 20000;
+
+    // Prints the device table and why the device was or was not used.
+    gpuVerbose  true;
+}
+
+SIMPLE
+{
+    nNonOrthogonalCorrectors 0;
+}
+
+relaxationFactors
+{
+    fields
+    {
+        p               1;
+    }
+    equations
+    {
+        U               1;
+    }
+}
+
+// ************************************************************************* //

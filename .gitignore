@@ -7,3 +7,6 @@ bin/
 obj/
 platforms/
 build/
+
+# Сборка тестов
+build/
