@@ -1,0 +1,9 @@
+# Объектники и бинарники
+*.o
+*.so
+*.a
+*.mod
+bin/
+obj/
+platforms/
+build/
