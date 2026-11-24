@@ -16,6 +16,7 @@
 #   make voxel       вокселизация: BVH, сходимость объёма, «внутри/снаружи» (v1.36.0)
 #   make stl         формат STL: хвост, обрезок, ASCII/бинарный, NaN, координаты (v1.36.0)
 #   make physref     эталонные течения: Пуазейль, вязкость, порядок сходимости (v1.36.0)
+#   make fx3d        мост Aeros<->FluidX3D: раскладка индексов, геометрия во флаги (v1.38.2)
 #
 # Тесты намеренно не входят ни в один релизный сборочный скрипт: они линкуют
 # заглушки вместо OpenGL/GLFW/CUDA и нужны только для проверки логики.
@@ -30,8 +31,8 @@ COMMON := $(SRC)/globals.cpp $(SRC)/debug_log.cpp
 
 IMGUI := $(SRC)/imgui
 
-.PHONY: all bench timelapse lbm physclock fem ui settings vulkan startup glyphs hotkeys validate openurl voxel stl physref thermal clean
-all: timelapse lbm physclock fem ui settings vulkan startup glyphs hotkeys validate openurl voxel stl physref thermal
+.PHONY: all bench timelapse lbm physclock fem ui settings vulkan startup glyphs hotkeys validate openurl voxel stl physref thermal fx3d clean
+all: timelapse lbm physclock fem ui settings vulkan startup glyphs hotkeys validate openurl voxel stl physref thermal fx3d
 
 timelapse:
 	g++ $(CXXFLAGS) timelapse_headless.cpp $(SRC)/timelapse.cpp $(SRC)/debug_log.cpp \
@@ -82,7 +83,7 @@ ui:
 
 clean:
 	rm -f /tmp/aeros-test-stl /tmp/aeros-test-voxel /tmp/aeros-test-physref /tmp/aeros-test-thermal /tmp/aeros-test-openurl /tmp/aeros-test-validate /tmp/aeros-test-timelapse /tmp/aeros-test-glyphs /tmp/aeros-test-hotkeys /tmp/aeros-test-lbm /tmp/aeros-test-physclock \
-	      /tmp/aeros-test-fem /tmp/aeros-test-startup
+	      /tmp/aeros-test-fem /tmp/aeros-test-startup /tmp/aeros-test-fx3d
 
 # Главное меню (v1.34.0): стартовый экран рисуется настоящим ImGui, поэтому
 # ядро ImGui подключается к сборке. Движок не линкуется: загрузчики модели и
@@ -120,6 +121,15 @@ thermal:
 	    $(SRC)/voxel_grid.cpp $(SRC)/atmosphere.cpp $(COMMON) \
 	    -o /tmp/aeros-test-thermal
 	/tmp/aeros-test-thermal
+
+# Мост Aeros <-> FluidX3D (v1.38.2): раскладка индексов, геометрия во флаги,
+# поведение при отказе. Собирается БЕЗ FluidX3D и без OpenCL: проверяется
+# отображение, а оно и есть та часть, которая ошибается тихо. Сборка с
+# -DAEROS_WITH_FX3D добавляет вызовы решателя и требует заголовки FluidX3D.
+fx3d:
+	g++ $(CXXFLAGS) fx3d_headless.cpp $(SRC)/fx3d_backend.cpp \
+	    -o /tmp/aeros-test-fx3d
+	/tmp/aeros-test-fx3d
 
 # Стенд производительности (не проверка, поэтому не в run-suites.sh).
 bench:
