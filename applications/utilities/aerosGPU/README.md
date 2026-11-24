@@ -47,14 +47,35 @@ accelerator into a source of wrong answers:
 
 ```bash
 cd applications/utilities/aerosGPU
-wmake libso     # -> $FOAM_USER_LIBBIN/libaerosGpuSolvers.so
-wmake           # -> $FOAM_USER_APPBIN/aerosGpuInfo
+wmake libso                      # -> $FOAM_USER_LIBBIN/libaerosGpuSolvers.so
+wmake                            # -> $FOAM_USER_APPBIN/aerosGpuInfo
+cd tests/integration && wmake    # -> $FOAM_USER_APPBIN/aerosGpuLduTest, then run it
 ```
 
 Nothing links `libOpenCL`: the loader is resolved with `dlopen`, so the library builds
 and loads on a machine without a driver (where it then uses the CPU path).
-`-fopenmp` is in `PROJECT_CFLAGS` because `wmake` has no per-target flag variable and
-the CPU reference is threaded.
+
+`-fopenmp` is in **`EXE_INC`**, which looks wrong but is the only place that works:
+`PROJECT_CFLAGS` was dropped from OpenFOAM-dev's `wmake` and is now silently
+ignored, so putting the flag there compiles every `#pragma omp` with
+`-Wunknown-pragmas` and leaves the threaded reference path serial — while still
+returning the right answers, which is why it went unnoticed. `EXE_INC` is expanded
+into `c++FLAGS` verbatim, so a bare flag there reaches the compiler. It also has to be
+in `LIB_LIBS` so the link step pulls in `libgomp`.
+
+## What has actually been run
+
+`tests/integration` builds a 16×16×16 7-point Laplacian as a real `lduMatrix` and
+checks, with the solvers selected **by name from a dictionary** the way `fvSolution`
+does it: the residual recomputed from `A*x-b` (not taken from the solver's report), the
+solution compared against OpenFOAM's own `PCG`, the asymmetric path with
+`lower != upper` (where a symmetric-only implementation would converge to the wrong
+answer), and a zero right-hand side. 14 checks, 0 failures against
+`OpenFOAM-dev-20261113` built in this repository's sandbox.
+
+There was no OpenCL device available, so every solve ran the CPU path and said so.
+The kernels are compile-checked and the fallback is exercised; they have not executed
+on a GPU.
 
 ## Using
 
