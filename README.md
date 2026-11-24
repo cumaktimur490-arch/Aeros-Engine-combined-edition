@@ -2,9 +2,11 @@
 
 This repository holds two things that are deliberately kept apart:
 
-- **`aeros/`, `libs/`, `docs/`, …** — the Aeros Engine 1.38.1 sources, exactly as
-  released (one exception below), including the D3Q19 LBM solver, the CAD/CAE shell,
-  the voxeliser, the forces module and the 21 headless test suites.
+- **`aeros/`, `libs/`, `docs/`, …** — the Aeros Engine 1.38.1 sources, including the
+  D3Q19 LBM solver, the CAD/CAE shell, the voxeliser, the forces module and the headless
+  test suites. Two things were added to this tree rather than shipped with it:
+  `aeros/src/fx3d_backend.{h,cpp}` (a FluidX3D bridge, described below) and
+  `aeros/tests/fx3d_headless.cpp`. Nothing else in `aeros/src` was touched.
 - **`applications/utilities/aerosGPU/`** — an OpenCL accelerator for OpenFOAM's
   `lduMatrix`, registered as two drop-in solvers, `aerosPCG` and `aerosPBiCGStab`.
 
@@ -31,32 +33,49 @@ line. The OpenCL kernels compile-check and the dispatcher's fallback is exercise
 no kernel has executed on a device. Treat the GPU numbers as unmeasured until
 `aerosGpuInfo` reports a device on a machine that has one.
 
-**The Aeros side is imported, not built.** Building it needs GLFW, glad and Vulkan
-plus a desktop session; the headless suites need none of that, but the engine itself
-was not compiled here. Nothing was changed in `aeros/src`.
+**The Aeros engine itself is imported, not built.** Building it needs GLFW, glad and
+Vulkan plus a desktop session; the headless suites need none of that. Of those suites,
+`make lbm` (98 checks) and `make fx3d` (36 checks) were run here; the rest were not.
 
-**FluidX3D is not vendored, and the two reasons are worth separating.**
+**FluidX3D: a bridge exists, and it is honestly labelled.** The user asked for a
+FluidX3D backend for personal, non-commercial use, which is what FluidX3D 3.9's licence
+permits outright ("public research, education or personal use").
 
-*Nothing to restore.* `docs/` and `CHANGELOG.md` in the Aeros release state plainly that
-its LBM solver was written from scratch and that *"third-party solvers, including
-FluidX3D, were not used"*. There is no FluidX3D integration in the engine's history to
-recover; building one would be writing a new backend, not restoring a lost one.
+`aeros/src/fx3d_backend.{h,cpp}` is that bridge. It maps Aeros geometry onto FluidX3D's
+boundary flags, supplies the initial flow, runs steps and reads `rho`/`u` back. It is
+built in two halves on purpose:
 
-*The licence rules out mixing.* Aeros Engine is GPL-3.0. FluidX3D 3.9 is
-source-available, **not** open source: its licence (i) forbids commercial use, (ii)
-forbids military use, (iii) requires that altered source be published, and (iv) forbids
-training AI models on the code. A single GPL program that links or contains FluidX3D
-could then not be used commercially or for military purposes at all — and under the GPL
-nothing may add such restrictions to the whole. Combined with point one, this is a
-decision to make on purpose, not a merge to perform.
+- **Testable everywhere** (`make fx3d`, 36 checks, 0 failures): index layout, voxels to
+  `TYPE_S`/`TYPE_E`, inlet placement and direction, `TYPE_F` never written by hand,
+  memory estimate, and the refusal paths. This half is verified without any device
+  because the mapping is what fails silently — mistranslate it and you get a plausible
+  field that is simply not yours.
+- **Compile-verified against FluidX3D itself:** the file compiles against 3.9's real
+  headers, so every API call and the `static_assert`s on the flag values are checked
+  against the source rather than recalled.
 
-*And it could not be measured here anyway.* FluidX3D compiles its kernels at runtime
-and refuses to start without an OpenCL device, so nothing about it can be checked in
-this environment. Swapping a solver verified against Poiseuille, Rayleigh–Bénard and
-grid convergence for one that cannot run would trade evidence for a claim.
+**What is still not proven: no kernel ran.** There is no OpenCL device in this
+environment, so `begin()` correctly refuses and the device path is unexecuted. That is
+also why the bridge is not yet wired into `lbm.cpp` and the UI: switching the engine's
+solver to a path that cannot be run would remove the measured verification the Aeros
+solver already has, without replacing it with anything measurable. The switch belongs
+on a machine with a GPU.
 
-The shape of that job, if it is wanted after the licence question is settled, is at the
-end of this file.
+Two findings worth keeping, both from running the thing rather than reading it:
+
+- `get_devices()` in FluidX3D `opencl.hpp` ends in **`exit(1)`** when no device exists —
+  not an exception. So `try`/`catch` around it is useless, and a probe built the naive
+  way printed FluidX3D's install-your-drivers wall and died with code 1. `available()`
+  now probes with `dlopen` + `clGetPlatformIDs` first and `begin()`/`describeDevice()`
+  gate on it. Measured after the fix: both return false with a reason, process exits 0.
+- The index orders are *not* different. Aeros stores `(z*Ny+y)*Nx+x`, FluidX3D stores
+  `x + Nx*(y + Ny*z)` — the same formula. My first test asserted they differ and
+  failed; the test was wrong, not the code. What does differ is field layout
+  (`[component*N + n]` versus separate arrays).
+
+Licence note for the record, since it constrains distribution rather than use: Aeros is
+GPL-3.0 and FluidX3D forbids commercial and military use and requires modified source to
+be published. Personal use is fine; shipping the combination as a product is not.
 
 ## Building `aerosGPU` (OpenFOAM side)
 
@@ -101,12 +120,14 @@ Two build notes that cost time to discover, both now fixed in `Make/options`:
 
 ```sh
 cd aeros/tests
-make            # all 21 suites
+make            # every suite
 make lbm        # one suite
+make fx3d       # the FluidX3D bridge, no device needed
 EXTRA_CXXFLAGS="-fsanitize=address,undefined -g" ./run-suites.sh
 ```
 
-Measured in this environment: `make lbm` → 98 checks, 0 failures.
+Measured in this environment: `make lbm` → 98 checks, 0 failures;
+`make fx3d` → 36 checks, 0 failures.
 
 ## Standalone aerosGPU harness
 
@@ -122,18 +143,19 @@ Latest result: 24 checks, 0 failures, both plain and under sanitizers. PCG conve
 19 iterations to a residual of 5.585e-13 (dense reference 1.93e-12); PBiCGStab in 10
 iterations to 2.824e-14 (dense 1.82e-13).
 
-## If the FluidX3D backend is wanted after all
+## Wiring the FluidX3D backend in, on a machine that has a device
 
-The honest version of that job, in order, and none of it can be finished here:
+The bridge is finished and tested; what remains is the switch, and each step needs a
+GPU to be worth doing:
 
-1. A build with an OpenCL device attached, so the backend can be measured rather than
-   assumed. Without that there is no way to tell a working kernel from a plausible one.
-2. A bridge layer of our own in `aeros/src/`, mapping voxelised geometry onto
-   FluidX3D's `flags` and reading `rho`/`u` back through its host buffers. FluidX3D's
-   cells carry 93 bytes (55 on CPU/iGPU), against Aeros's 19 `float`s per cell plus
-   fields, so this is a real data-layout question, not a swap.
-3. A UI choice next to the existing CUDA/CPU switch, reported through the same
-   diagnostics Aeros already prints: which backend ran, why, and what it cost.
-4. The existing `make lbm` / `make physref` / `make thermal` suites re-run against the
-   new backend. If they cannot pass, the backend is not ready — those suites are what
-   distinguishes this solver from a demo.
+1. `aerosFx3d::Backend` must be able to `begin()` and survive a real run. Until a
+   device is present this is unmeasured, and wiring it in would be untested code on
+   the physics path.
+2. Map the engine's live geometry: `g_voxelData`/`g_voxNx..` into
+   `aerosFx3d::mapGeometry` every time the voxel grid is rebuilt, not once at start.
+3. Read `rho`/`u` back into `lbmRho`/`lbmUx..lbmUz` after each step so forces,
+   streamlines and the pressure map keep working unchanged.
+4. Re-run `make lbm`, `make physref`, `make thermal` against the new backend. Those
+   suites are what distinguish this solver from a demo; if they cannot pass on
+   FluidX3D, the backend is not ready.
+
