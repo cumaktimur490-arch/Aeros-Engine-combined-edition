@@ -35,14 +35,28 @@ no kernel has executed on a device. Treat the GPU numbers as unmeasured until
 plus a desktop session; the headless suites need none of that, but the engine itself
 was not compiled here. Nothing was changed in `aeros/src`.
 
-**FluidX3D is not integrated.** `docs/` and `CHANGELOG.md` in the Aeros release state
-plainly that its LBM solver was written from scratch and that *"third-party solvers,
-including FluidX3D, were not used"*. Integrating it anyway would replace a solver with
-measured verification (Poiseuille, Rayleigh–Bénard, grid convergence, thread-count
-independence) by one that cannot be checked on this machine at all: FluidX3D compiles
-its kernels at runtime and refuses to start without an OpenCL device. Substituting it
-blind would trade evidence for a claim. The intended shape of such an integration, if
-it is wanted, is written up below.
+**FluidX3D is not vendored, and the two reasons are worth separating.**
+
+*Nothing to restore.* `docs/` and `CHANGELOG.md` in the Aeros release state plainly that
+its LBM solver was written from scratch and that *"third-party solvers, including
+FluidX3D, were not used"*. There is no FluidX3D integration in the engine's history to
+recover; building one would be writing a new backend, not restoring a lost one.
+
+*The licence rules out mixing.* Aeros Engine is GPL-3.0. FluidX3D 3.9 is
+source-available, **not** open source: its licence (i) forbids commercial use, (ii)
+forbids military use, (iii) requires that altered source be published, and (iv) forbids
+training AI models on the code. A single GPL program that links or contains FluidX3D
+could then not be used commercially or for military purposes at all — and under the GPL
+nothing may add such restrictions to the whole. Combined with point one, this is a
+decision to make on purpose, not a merge to perform.
+
+*And it could not be measured here anyway.* FluidX3D compiles its kernels at runtime
+and refuses to start without an OpenCL device, so nothing about it can be checked in
+this environment. Swapping a solver verified against Poiseuille, Rayleigh–Bénard and
+grid convergence for one that cannot run would trade evidence for a claim.
+
+The shape of that job, if it is wanted after the licence question is settled, is at the
+end of this file.
 
 ## Building `aerosGPU` (OpenFOAM side)
 
