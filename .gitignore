@@ -46,3 +46,11 @@ aeros_autosave.aerosproj
 
 # Сторонние исходники, вкоммиченные по требованию задачи (глава о FluidX3D
 # ниже). Не раздувать: снимок репозитория ограничен ~128 МБ.
+
+# wmake собирает объектники и lnInclude рядом с исходниками.
+applications/**/Make/linux64*/
+applications/**/lnInclude/
+aeros/tests/lnInclude/
+
+# Архивы, скачанные из Drive/на вход задачи: только источник, не содержимое репозитория.
+google_drive/

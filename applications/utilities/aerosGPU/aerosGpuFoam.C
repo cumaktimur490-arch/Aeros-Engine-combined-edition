@@ -109,6 +109,16 @@ solverPerformance toPerformance
 }
 
 
+// OpenFOAM reports a solve as "<preconditioner><solver>", e.g. "DICPCG". Ours used to
+// concatenate the preconditioner with the registered type name and produce
+// "DICaerosPCG", which reads like a preconditioner named "DICaeros". Keep the user's
+// preconditioner and append the name of the solver actually doing the work.
+word solverName(const dictionary& controls, const char* base)
+{
+    return lduMatrix::preconditioner::getName(controls) + base;
+}
+
+
 void announce(const Settings& s, const lduMatrix& matrix)
 {
     if (s.verbose)
@@ -193,7 +203,7 @@ solverPerformance aerosPCG::solve
     return toPerformance
     (
         o,
-        lduMatrix::preconditioner::getName(controlDict_) + typeName,
+        solverName(controlDict_, "PCG"),
         fieldName_,
         psi,
         a
@@ -273,7 +283,7 @@ solverPerformance aerosPBiCGStab::solve
     return toPerformance
     (
         o,
-        lduMatrix::preconditioner::getName(controlDict_) + typeName,
+        solverName(controlDict_, "PBiCGStab"),
         fieldName_,
         psi,
         a

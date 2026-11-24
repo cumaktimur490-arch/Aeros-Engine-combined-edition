@@ -241,6 +241,16 @@ SolverResult solveCGCPU
     result.residual = norm2(r)/normFactor;
     const double initialResidual = result.residual;
 
+    // A zero right-hand side is already the solution. Without this the loop enters
+    // with r == p == 0, the first dot product is exactly 0 and the solve is reported as
+    // "zero curvature (singular matrix)", which is the wrong reason for the right
+    // answer. Measured on an lduMatrix: 1 iteration and a false breakdown message.
+    if (!(initialResidual > controls.tolerance))
+    {
+        result.status = CONVERGED;
+        return result;
+    }
+
     if (controls.maxIter <= 0)
     {
         result.status = MAX_ITER;

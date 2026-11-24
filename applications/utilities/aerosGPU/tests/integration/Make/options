@@ -1,0 +1,11 @@
+EXE_INC = \
+    -I$(LIB_SRC)/OpenFOAM/lnInclude \
+    -fopenmp \
+
+LIB_LIBS = \
+    -L$(FOAM_USER_LIBBIN) \
+    -laerosGpuSolvers \
+    -L$(FOAM_LIBBIN) \
+    -lOpenFOAM \
+    -fopenmp \
+    -ldl

@@ -244,7 +244,12 @@ std::string describe()
     const std::vector<DeviceInfo>& list = devices();
     if (list.empty())
     {
-        return std::string("aerosGPU: ") + reason() + "\n";
+        // No trailing newline on purpose: callers stream this into Info << and
+        // append their own endl. OpenFOAM quotes a string that contains a newline and
+        // escapes it, so a stray "\n" here used to come out as
+        //   "aerosGPU: ... )\n"
+        // in every log line instead of a plain message.
+        return std::string("aerosGPU: ") + reason();
     }
 
     std::ostringstream os;
@@ -264,7 +269,12 @@ std::string describe()
         }
         os << '\n';
     }
-    return os.str();
+
+    // One trailing newline is removed for the same reason as above — the caller adds
+    // its own. describe() is also printed by aerosGpuInfo, which does not care.
+    std::string out = os.str();
+    if (!out.empty() && out.back() == '\n') out.pop_back();
+    return out;
 }
 
 

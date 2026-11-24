@@ -1,19 +1,9 @@
 EXE_INC = \
-    -I$(LIB_SRC)/OpenFOAM/lnInclude
-
-# Two things here are deliberate.
-#
-# -fopenmp: the CPU reference path (aerosGpuMatrix.C) is threaded. wmake has no
-# per-target flag variable, so it has to live in PROJECT_CFLAGS — putting it only in
-# PROJECT_LDFLAGS gives a binary that silently runs single-threaded.
-#
-# No -lOpenCL: the accelerator resolves the library itself with dlopen, so this .so
-# loads and runs on a machine with no OpenCL driver. Linking it would make the library
-# refuse to load there, which is exactly the machine where the CPU fallback matters.
-
-PROJECT_CFLAGS = -fopenmp -O2
+    -I$(LIB_SRC)/OpenFOAM/lnInclude \
+    -fopenmp \
 
 LIB_LIBS = \
     -L$(FOAM_LIBBIN) \
     -lOpenFOAM \
+    -fopenmp \
     -ldl
