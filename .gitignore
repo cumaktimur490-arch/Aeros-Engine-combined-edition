@@ -1,12 +1,48 @@
-# Объектники и бинарники
-*.o
-*.so
-*.a
-*.mod
+# Артефакты сборки.
+# v1.36.0 — в aeros/bin/ лежат артефакты сборки (.dll/.lib/.exe) И демо-модели с
+# run.bat, которые нужны в репозитории. Поэтому «bin/» заменён на явный список
+# исключений: всё игнорируется, кроме демо-моделей и run.bat.
 bin/
-obj/
-platforms/
-build/
+aeros/bin/*
+!aeros/bin/*.stl
+!aeros/bin/run.bat
+*.exe
+*.obj
+*.o
+*.pdb
+*.ilk
+*.idb
+*.ipch
+*.tlog
+*.log
 
-# Сборка тестов
-build/
+# ImGui-макет окна (персональные настройки)
+imgui.ini
+
+# IDE
+.vs/
+release/
+dist/
+
+# Режим отладки v1.25.0: создаётся программой во время работы
+logs/
+physics.csv
+Aeros-Debug-Report-*.txt
+# v1.26.0 — история таймлапса физики
+timelapse-*.csv
+
+# v1.33.0 — npm-зависимость только для пересборки SPIR-V (tools/build-shaders.js)
+node_modules
+package-lock.json
+
+# Временные файлы тестов
+/tmp/aeros_recent*
+aeros/tests/aeros_recent.txt
+
+# Списки недавних файлов создаются во время работы программы
+aeros_recent.txt
+aeros_recent_studies.txt
+aeros_autosave.aerosproj
+
+# Сторонние исходники, вкоммиченные по требованию задачи (глава о FluidX3D
+# ниже). Не раздувать: снимок репозитория ограничен ~128 МБ.
